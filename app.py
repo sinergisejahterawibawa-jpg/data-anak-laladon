@@ -49,43 +49,74 @@ def load_data():
 # Load data awal
 df = load_data()
 
-# Form Input Data (Kolom Nomor dihapus)
-with st.form("form_input_anak", clear_on_submit=True):
-    st.subheader("➕ Tambah Data Anak Baru")
+# Form Input Multi-Data Sekaligus
+with st.form("form_batch_input", clear_on_submit=True):
+    st.subheader("➕ Input Banyak Data Anak Sekaligus")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        nama_anak = st.text_input("Nama Lengkap Anak")
-    with col2:
-        umur = st.number_input("Umur (Tahun)", min_value=0, max_value=18, step=1)
-        blok_rumah = st.text_input("Blok Rumah (Kunci Unik, Cth: A1/12)")
+    # Pilih berapa banyak baris input yang ingin ditampilkan
+    jumlah_input = st.number_input(
+        "Berapa data anak yang ingin dimasukkan sekaligus?", 
+        min_value=1, 
+        max_value=20, 
+        value=1, 
+        step=1
+    )
     
-    submitted = st.form_submit_button("Simpan Data")
+    st.markdown("---")
+    
+    inputs = []
+    for i in range(int(jumlah_input)):
+        st.markdown(f"**Anak ke-{i+1}**")
+        col1, col2, col3 = st.columns([3, 1, 2])
+        with col1:
+            nama_anak = st.text_input(f"Nama Lengkap Anak {i+1}", key=f"nama_{i}")
+        with col2:
+            umur = st.number_input(f"Umur {i+1} (Thn)", min_value=0, max_value=18, step=1, key=f"umur_{i}")
+        with col3:
+            blok_rumah = st.text_input(f"Blok Rumah {i+1}", key=f"blok_{i}")
+        
+        st.markdown("")
+        inputs.append({"nama": nama_anak, "umur": umur, "blok": blok_rumah})
+    
+    submitted = st.form_submit_button("🚀 Simpan Semua Data ke Database")
     
     if submitted:
-        # Validasi field kosong
-        if not nama_anak or not blok_rumah:
-            st.warning("⚠️ Harap isi Nama dan Blok Rumah!")
+        # Validasi apakah ada kolom yang kosong
+        invalid = False
+        for item in inputs:
+            if not item["nama"].strip() or not item["blok"].strip():
+                invalid = True
+                break
+        
+        if invalid:
+            st.warning("⚠️ Semua kolom Nama dan Blok Rumah pada baris yang aktif wajib diisi!")
         else:
-            # Cek duplikasi
-            existing_blocks = df["Blok Rumah"].astype(str).str.strip().tolist() if not df.empty else []
+            # Ambil data terbaru untuk menghitung nomor urut kelanjutan
+            current_df = load_data()
+            start_num = len(current_df) + 1
             
-            if blok_rumah.strip() in existing_blocks:
-                st.error(f"❌ Gagal: Blok Rumah '{blok_rumah}' sudah terdaftar!")
-            else:
-                # LOGIKA PENOMORAN OTOMATIS: Jumlah data saat ini + 1
-                next_number = len(df) + 1
+            # Proses penyimpanan semua baris sekaligus ke Google Sheets
+            rows_to_append = []
+            for idx, item in enumerate(inputs):
+                current_number = start_num + idx
+                rows_to_append.append([
+                    str(current_number), 
+                    str(item["nama"]).strip(), 
+                    int(item["umur"]), 
+                    str(item["blok"]).strip()
+                ])
+            
+            # Kirim semua data ke Google Sheets
+            for row in rows_to_append:
+                sheet.append_row(row)
                 
-                # Simpan baris baru (Nomor diisi otomatis oleh variabel next_number)
-                new_row = [str(next_number), str(nama_anak), int(umur), str(blok_rumah).strip()]
-                sheet.append_row(new_row)
-                st.success(f"✅ Data anak berhasil disimpan sebagai nomor {next_number}!")
-                
-                # Load database otomatis setelah simpan
-                df = load_data()
-                st.rerun()
+            st.success(f"✅ Berhasil menyimpan {len(inputs)} data anak sekaligus ke database!")
+            
+            # Load database otomatis dan refresh tampilan
+            df = load_data()
+            st.rerun()
 
-# Tampilkan Database
+# Tampilkan Database / Tabel Data Anak secara Real-Time
 st.markdown("---")
 st.subheader("📋 Database Data Anak")
 

@@ -10,7 +10,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# KONEKSI PINTAR (Otomatis deteksi Cloud atau Laptop Lokal)
+# KONEKSI PINTAR
 @st.cache_resource
 def init_connection():
     scope = [
@@ -18,11 +18,11 @@ def init_connection():
         "https://www.googleapis.com/auth/drive"
     ]
     try:
-        # Coba baca dari Streamlit Secrets (Jika diakses online/Cloud HP)
+        # Coba baca dari Streamlit Secrets (Jika diakses online/Cloud)
         creds_dict = dict(st.secrets["gcp_service_account"])
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     except Exception:
-        # Jika gagal (berarti dijalankan di laptop lokal), pakai file credentials.json
+        # Jika gagal (dijalankan di laptop lokal), pakai file credentials.json
         creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
         
     client = gspread.authorize(creds)
@@ -39,7 +39,7 @@ except Exception as e:
 st.title("🏡 Aplikasi Pendataan Anak Cluster de Laladon")
 st.markdown("Pencatatan data anak terpusat pada database Google Sheets **Data Anak**.")
 
-# Fungsi untuk memuat ulang data otomatis dari database
+# Fungsi untuk memuat ulang data otomatis
 def load_data():
     data = sheet.get_all_records()
     if not data:
@@ -49,13 +49,12 @@ def load_data():
 # Load data awal
 df = load_data()
 
-# Form Input Data
+# Form Input Data (Kolom Nomor dihapus)
 with st.form("form_input_anak", clear_on_submit=True):
     st.subheader("➕ Tambah Data Anak Baru")
     
     col1, col2 = st.columns(2)
     with col1:
-        nomor = st.text_input("Nomor Urut / ID")
         nama_anak = st.text_input("Nama Lengkap Anak")
     with col2:
         umur = st.number_input("Umur (Tahun)", min_value=0, max_value=18, step=1)
@@ -65,25 +64,28 @@ with st.form("form_input_anak", clear_on_submit=True):
     
     if submitted:
         # Validasi field kosong
-        if not nomor or not nama_anak or not blok_rumah:
-            st.warning("⚠️ Semua kolom wajib diisi!")
+        if not nama_anak or not blok_rumah:
+            st.warning("⚠️ Harap isi Nama dan Blok Rumah!")
         else:
-            # Cek duplikasi berdasarkan Blok Rumah (Kunci Unik)
+            # Cek duplikasi
             existing_blocks = df["Blok Rumah"].astype(str).str.strip().tolist() if not df.empty else []
             
             if blok_rumah.strip() in existing_blocks:
-                st.error(f"❌ Gagal: Blok Rumah '{blok_rumah}' sudah terdaftar! Pengisian tidak boleh dobel.")
+                st.error(f"❌ Gagal: Blok Rumah '{blok_rumah}' sudah terdaftar!")
             else:
-                # Simpan baris baru ke Google Sheets
-                new_row = [str(nomor), str(nama_anak), int(umur), str(blok_rumah).strip()]
+                # LOGIKA PENOMORAN OTOMATIS: Jumlah data saat ini + 1
+                next_number = len(df) + 1
+                
+                # Simpan baris baru (Nomor diisi otomatis oleh variabel next_number)
+                new_row = [str(next_number), str(nama_anak), int(umur), str(blok_rumah).strip()]
                 sheet.append_row(new_row)
-                st.success(f"✅ Data anak untuk Blok '{blok_rumah}' berhasil disimpan ke database!")
+                st.success(f"✅ Data anak berhasil disimpan sebagai nomor {next_number}!")
                 
                 # Load database otomatis setelah simpan
                 df = load_data()
                 st.rerun()
 
-# Tampilkan Database / Tabel Data Anak secara Real-Time
+# Tampilkan Database
 st.markdown("---")
 st.subheader("📋 Database Data Anak")
 

@@ -28,11 +28,11 @@ def init_connection():
         "https://www.googleapis.com/auth/drive"
     ]
     try:
-        # Coba baca dari Streamlit Secrets (Jika diakses online/Cloud)
+        # Coba baca dari Streamlit Secrets
         creds_dict = dict(st.secrets["gcp_service_account"])
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     except Exception:
-        # Jika gagal (dijalankan di laptop lokal), pakai file credentials.json
+        # Jika lokal
         creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
         
     client = gspread.authorize(creds)
@@ -40,26 +40,12 @@ def init_connection():
 
 try:
     client = init_connection()
-    # Membuka file Google Sheet dengan nama "Data Anak"
     sheet = client.open("Data Anak").sheet1
 except Exception as e:
     st.error(f"Gagal terhubung ke Google Sheets: {e}")
     st.stop()
 
 st.title("🏡 Aplikasi Pendataan Anak Cluster de Laladon")
-st.markdown("Pencatatan data anak terpusat pada database Google Sheets **Data Anak**.")
-
-# Fungsi untuk memuat ulang data otomatis
-def load_data():
-    data = sheet.get_all_records()
-    if not data:
-        return pd.DataFrame(columns=["Nomor", "Nama Anak", "Umur", "Blok Rumah"])
-    return pd.DataFrame(data)
-
-# Load data awal
-df = load_data()
-
-st.subheader("➕ Input Banyak Data Anak Sekaligus")
 
 # Pengatur jumlah input di LUAR form
 jumlah_input = st.selectbox(
@@ -68,39 +54,26 @@ jumlah_input = st.selectbox(
     index=0
 )
 
-st.markdown("---")
-
 # Form Input Data
 with st.form("form_batch_input"):
     inputs = []
     for i in range(int(jumlah_input)):
-        st.markdown(f"**Anak ke-{i+1}**")
-        col1, col2, col3 = st.columns([3, 1, 2])
-        
+        col1, col2 = st.columns([3, 1])
         with col1:
-            nama_anak = st.text_input(f"Nama Lengkap Anak {i+1}", key=f"nama_{i}")
+            nama_anak = st.text_input(f"Nama Anak {i+1}", key=f"nama_{i}")
         with col2:
-            umur = st.selectbox(
-                f"Umur {i+1} (Thn)", 
-                options=list(range(0, 19)), 
-                index=7, 
-                key=f"umur_{i}"
-            )
-        with col3:
-            # Dropdown Blok Rumah
-            blok_rumah = st.selectbox(
-                f"Blok Rumah {i+1}", 
-                options=LIST_BLOK,
-                key=f"blok_{i}"
-            )
+            umur = st.selectbox(f"Umur {i+1}", options=list(range(0, 19)), index=7, key=f"umur_{i}")
         
-        st.markdown("")
-        inputs.append({"nama": nama_anak, "umur": umur, "blok": blok_rumah})
+        inputs.append({"nama": nama_anak, "umur": umur})
     
-    submitted = st.form_submit_button("🚀 Simpan Semua Data ke Database")
+    st.markdown("---")
+    # Blok Rumah diletakkan di akhir dan berlaku untuk semua
+    blok_rumah_utama = st.selectbox("Pilih Blok Rumah (Berlaku untuk semua anak di atas):", options=LIST_BLOK)
+    
+    submitted = st.form_submit_button("🚀 Simpan Semua Data")
     
     if submitted:
-        # Validasi nama (karena blok sudah pasti terisi dari dropdown)
+        # Validasi nama (karena blok sudah pasti terisi)
         invalid = False
         for item in inputs:
             if not item["nama"].strip():
@@ -120,21 +93,21 @@ with st.form("form_batch_input"):
                     str(current_number), 
                     str(item["nama"]).strip(), 
                     int(item["umur"]), 
-                    str(item["blok"]).strip()
+                    str(blok_rumah_utama).strip()
                 ])
             
             for row in rows_to_append:
                 sheet.append_row(row)
                 
-            st.success(f"✅ Berhasil menyimpan {len(inputs)} data anak ke database!")
-            df = load_data()
+            st.success(f"✅ Berhasil menyimpan {len(inputs)} data anak ke Blok {blok_rumah_utama}!")
             st.rerun()
 
+# Tabel Database
 st.markdown("---")
 st.subheader("📋 Database Data Anak")
-
+df = load_data()
 if df.empty:
-    st.info("Belum ada data tersimpan di database.")
+    st.info("Belum ada data.")
 else:
     st.dataframe(df, use_container_width=True)
-    st.caption(f"Total anak terdaftar: **{len(df)}** orang")
+    st.caption(f"Total anak terdaftar: {len(df)} orang")

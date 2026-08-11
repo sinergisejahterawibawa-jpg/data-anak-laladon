@@ -3,13 +3,14 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 
+# Konfigurasi Halaman Web
 st.set_page_config(
     page_title="Data Anak Cluster de Laladon",
     page_icon="🏡",
     layout="wide"
 )
 
-# Koneksi Pintar (Bisa di Cloud maupun Lokal)
+# KONEKSI PINTAR (Otomatis deteksi Cloud atau Laptop Lokal)
 @st.cache_resource
 def init_connection():
     scope = [
@@ -17,11 +18,11 @@ def init_connection():
         "https://www.googleapis.com/auth/drive"
     ]
     try:
-        # 1. Coba baca dari Streamlit Secrets (Jika diakses online/Cloud)
+        # Coba baca dari Streamlit Secrets (Jika diakses online/Cloud HP)
         creds_dict = dict(st.secrets["gcp_service_account"])
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     except Exception:
-        # 2. Jika gagal (artinya dijalankan di laptop lokal), pakai file credentials.json
+        # Jika gagal (berarti dijalankan di laptop lokal), pakai file credentials.json
         creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
         
     client = gspread.authorize(creds)
@@ -29,6 +30,7 @@ def init_connection():
 
 try:
     client = init_connection()
+    # Membuka file Google Sheet dengan nama "Data Anak"
     sheet = client.open("Data Anak").sheet1
 except Exception as e:
     st.error(f"Gagal terhubung ke Google Sheets: {e}")

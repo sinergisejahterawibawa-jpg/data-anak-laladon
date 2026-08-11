@@ -10,6 +10,16 @@ st.set_page_config(
     layout="wide"
 )
 
+# Daftar Pilihan Blok Rumah
+LIST_BLOK = [
+    "A3", "A4", "A5", "A6", "B2/1", "B3/1", "B3/3", "B3/4", "B3/5", 
+    "C1/1", "C1/2", "C1/3", "C2/1", "C2/2", "C2/3", "C2/4", "C2/5", "C3/2", 
+    "D1", "D2", "D3", "D5", "D6", "D8", "D10", 
+    "E1", "E2", "E4", "E5", "E8", "E9", "E10", "E11", "E12a", "E14", "E15", "E19", 
+    "F1/2", "F2/2", "F2/4", "F2/5", "F2/6", 
+    "G1/1", "G1/2", "G1/3", "G1/4", "G1/7", "G2/1", "G2/2"
+]
+
 # KONEKSI PINTAR
 @st.cache_resource
 def init_connection():
@@ -51,7 +61,7 @@ df = load_data()
 
 st.subheader("➕ Input Banyak Data Anak Sekaligus")
 
-# Pengatur jumlah input di LUAR form (Begitu diklik, halaman langsung menyesuaikan otomatis tanpa Enter)
+# Pengatur jumlah input di LUAR form
 jumlah_input = st.selectbox(
     "Pilih jumlah data anak yang ingin dimasukkan sekaligus:", 
     options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -70,15 +80,19 @@ with st.form("form_batch_input"):
         with col1:
             nama_anak = st.text_input(f"Nama Lengkap Anak {i+1}", key=f"nama_{i}")
         with col2:
-            # Umur menggunakan selectbox (pilih langsung tap tanpa ketik/enter)
             umur = st.selectbox(
                 f"Umur {i+1} (Thn)", 
                 options=list(range(0, 19)), 
-                index=7, # Default umur 7 tahun
+                index=7, 
                 key=f"umur_{i}"
             )
         with col3:
-            blok_rumah = st.text_input(f"Blok Rumah {i+1}", key=f"blok_{i}")
+            # Dropdown Blok Rumah
+            blok_rumah = st.selectbox(
+                f"Blok Rumah {i+1}", 
+                options=LIST_BLOK,
+                key=f"blok_{i}"
+            )
         
         st.markdown("")
         inputs.append({"nama": nama_anak, "umur": umur, "blok": blok_rumah})
@@ -86,21 +100,19 @@ with st.form("form_batch_input"):
     submitted = st.form_submit_button("🚀 Simpan Semua Data ke Database")
     
     if submitted:
-        # Validasi apakah ada kolom nama atau blok yang kosong
+        # Validasi nama (karena blok sudah pasti terisi dari dropdown)
         invalid = False
         for item in inputs:
-            if not item["nama"].strip() or not item["blok"].strip():
+            if not item["nama"].strip():
                 invalid = True
                 break
         
         if invalid:
-            st.warning("⚠️ Semua kolom Nama dan Blok Rumah wajib diisi!")
+            st.warning("⚠️ Harap isi nama anak pada semua baris yang aktif!")
         else:
-            # Ambil data terbaru untuk menghitung nomor urut kelanjutan
             current_df = load_data()
             start_num = len(current_df) + 1
             
-            # Proses penyimpanan semua baris sekaligus ke Google Sheets
             rows_to_append = []
             for idx, item in enumerate(inputs):
                 current_number = start_num + idx
@@ -111,17 +123,13 @@ with st.form("form_batch_input"):
                     str(item["blok"]).strip()
                 ])
             
-            # Kirim semua data ke Google Sheets
             for row in rows_to_append:
                 sheet.append_row(row)
                 
-            st.success(f"✅ Berhasil menyimpan {len(inputs)} data anak sekaligus ke database!")
-            
-            # Load database otomatis dan refresh tampilan
+            st.success(f"✅ Berhasil menyimpan {len(inputs)} data anak ke database!")
             df = load_data()
             st.rerun()
 
-# Tampilkan Database / Tabel Data Anak secara Real-Time
 st.markdown("---")
 st.subheader("📋 Database Data Anak")
 

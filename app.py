@@ -49,29 +49,34 @@ def load_data():
 # Load data awal
 df = load_data()
 
-# Form Input Multi-Data Sekaligus
-with st.form("form_batch_input", clear_on_submit=True):
-    st.subheader("➕ Input Banyak Data Anak Sekaligus")
-    
-    # Pilih berapa banyak baris input yang ingin ditampilkan
-    jumlah_input = st.number_input(
-        "Berapa data anak yang ingin dimasukkan sekaligus?", 
-        min_value=1, 
-        max_value=20, 
-        value=1, 
-        step=1
-    )
-    
-    st.markdown("---")
-    
+st.subheader("➕ Input Banyak Data Anak Sekaligus")
+
+# Pengatur jumlah input di LUAR form (Begitu diklik, halaman langsung menyesuaikan otomatis tanpa Enter)
+jumlah_input = st.selectbox(
+    "Pilih jumlah data anak yang ingin dimasukkan sekaligus:", 
+    options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    index=0
+)
+
+st.markdown("---")
+
+# Form Input Data
+with st.form("form_batch_input"):
     inputs = []
     for i in range(int(jumlah_input)):
         st.markdown(f"**Anak ke-{i+1}**")
         col1, col2, col3 = st.columns([3, 1, 2])
+        
         with col1:
             nama_anak = st.text_input(f"Nama Lengkap Anak {i+1}", key=f"nama_{i}")
         with col2:
-            umur = st.number_input(f"Umur {i+1} (Thn)", min_value=0, max_value=18, step=1, key=f"umur_{i}")
+            # Umur menggunakan selectbox (pilih langsung tap tanpa ketik/enter)
+            umur = st.selectbox(
+                f"Umur {i+1} (Thn)", 
+                options=list(range(0, 19)), 
+                index=7, # Default umur 7 tahun
+                key=f"umur_{i}"
+            )
         with col3:
             blok_rumah = st.text_input(f"Blok Rumah {i+1}", key=f"blok_{i}")
         
@@ -81,7 +86,7 @@ with st.form("form_batch_input", clear_on_submit=True):
     submitted = st.form_submit_button("🚀 Simpan Semua Data ke Database")
     
     if submitted:
-        # Validasi apakah ada kolom yang kosong
+        # Validasi apakah ada kolom nama atau blok yang kosong
         invalid = False
         for item in inputs:
             if not item["nama"].strip() or not item["blok"].strip():
@@ -89,7 +94,7 @@ with st.form("form_batch_input", clear_on_submit=True):
                 break
         
         if invalid:
-            st.warning("⚠️ Semua kolom Nama dan Blok Rumah pada baris yang aktif wajib diisi!")
+            st.warning("⚠️ Semua kolom Nama dan Blok Rumah wajib diisi!")
         else:
             # Ambil data terbaru untuk menghitung nomor urut kelanjutan
             current_df = load_data()

@@ -7,8 +7,6 @@ from google.oauth2.service_account import Credentials
 st.set_page_config(page_title="Data Anak Cluster de Laladon", page_icon="🏡", layout="wide")
 
 # --- 2. FUNGSI-FUNGSI PENTING ---
-
-# Inisialisasi Koneksi
 @st.cache_resource
 def init_connection():
     scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -19,7 +17,6 @@ def init_connection():
         creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
     return gspread.authorize(creds)
 
-# Fungsi untuk memuat data (Harus diletakkan di sini agar terbaca)
 def load_data(sheet_obj):
     data = sheet_obj.get_all_records()
     if not data:
@@ -27,8 +24,6 @@ def load_data(sheet_obj):
     return pd.DataFrame(data)
 
 # --- 3. EKSEKUSI UTAMA ---
-
-# Membuka Koneksi
 try:
     client = init_connection()
     sheet = client.open("Data Anak").sheet1
@@ -36,9 +31,7 @@ except Exception as e:
     st.error(f"Gagal terhubung ke Google Sheets: {e}")
     st.stop()
 
-# Judul Aplikasi
 st.title("🏡 Aplikasi Pendataan Anak Cluster de Laladon")
-st.markdown("Pencatatan data anak terpusat pada database Google Sheets **Data Anak**.")
 
 # Memanggil data
 df = load_data(sheet)
@@ -75,14 +68,11 @@ with st.form("form_batch_input"):
         if invalid:
             st.warning("⚠️ Harap isi nama anak pada semua baris yang aktif!")
         else:
-            # Hitung urutan
             current_df = load_data(sheet)
             start_num = len(current_df) + 1
-            
             for idx, item in enumerate(inputs):
                 current_number = start_num + idx
                 sheet.append_row([str(current_number), str(item["nama"]).strip(), int(item["umur"]), str(blok_rumah_utama).strip()])
-                
             st.success(f"✅ Berhasil menyimpan {len(inputs)} data anak ke Blok {blok_rumah_utama}!")
             st.rerun()
 
@@ -92,5 +82,6 @@ st.subheader("📋 Database Data Anak")
 if df.empty:
     st.info("Belum ada data.")
 else:
-    st.dataframe(df, use_container_width=True)
+    # BARIS DI BAWAH INI ADALAH PERUBAHAN UTAMA (ditambah hide_index=True)
+    st.dataframe(df, use_container_width=True, hide_index=True)
     st.caption(f"Total anak terdaftar: {len(df)} orang")

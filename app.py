@@ -36,10 +36,10 @@ st.title("🏡 Aplikasi Pendataan Anak Cluster de Laladon")
 # Memanggil data
 df = load_data(sheet)
 
-# Daftar Pilihan Blok Rumah
+# Daftar Pilihan Blok Rumah (C1/4 sudah ditambahkan)
 LIST_BLOK = [
     "A3", "A4", "A5", "A6", "B2/1", "B3/1", "B3/3", "B3/4", "B3/5", 
-    "C1/1", "C1/2", "C1/3", "C2/1", "C2/2", "C2/3", "C2/4", "C2/5", "C3/2", 
+    "C1/1", "C1/2", "C1/3", "C1/4", "C2/1", "C2/2", "C2/3", "C2/4", "C2/5", "C3/2", 
     "D1", "D2", "D3", "D5", "D6", "D8", "D10", 
     "E1", "E2", "E4", "E5", "E8", "E9", "E10", "E11", "E12a", "E14", "E15", "E19", 
     "F1/2", "F2/2", "F2/4", "F2/5", "F2/6", 
@@ -64,48 +64,29 @@ with st.form("form_batch_input"):
     submitted = st.form_submit_button("🚀 Simpan Semua Data")
     
     if submitted:
-        # 1. Cek apakah ada kolom nama yang kosong
+        # Cek apakah ada kolom nama yang kosong
         invalid_empty = any(not item["nama"].strip() for item in inputs)
         if invalid_empty:
             st.warning("⚠️ Harap isi nama anak pada semua baris yang aktif!")
         else:
-            # Ambil data terbaru dari database
             current_df = load_data(sheet)
             
-            # Ambil daftar nama yang sudah ada di database (dibuat huruf kecil semua agar akurat)
-            existing_names = []
-            if not current_df.empty and "Nama Anak" in current_df.columns:
-                existing_names = [str(n).strip().lower() for n in current_df["Nama Anak"].tolist()]
-            
-            # Ambil daftar nama yang diinput di form saat ini
+            # Cek duplikasi nama
+            existing_names = [str(n).strip().lower() for n in current_df["Nama Anak"].tolist()] if not current_df.empty else []
             batch_names = [str(item["nama"]).strip().lower() for item in inputs]
             
-            # 2. Cek duplikasi di dalam input batch itu sendiri
             if len(batch_names) != len(set(batch_names)):
                 st.error("❌ Gagal: Ada nama anak yang sama di dalam daftar input saat ini!")
+            elif any(name in existing_names for name in batch_names):
+                st.error("❌ Gagal: Nama anak sudah terdaftar di database!")
             else:
-                # 3. Cek apakah nama sudah terdaftar di database
-                duplicate_name = None
-                for name in batch_names:
-                    if name in existing_names:
-                        duplicate_name = name
-                        break
-                
-                if duplicate_name:
-                    st.error(f"❌ Gagal: Nama anak '{duplicate_name.title()}' sudah terdaftar di database! Pengisian tidak boleh dobel.")
-                else:
-                    # Jika aman, simpan ke Google Sheets
-                    start_num = len(current_df) + 1
-                    for idx, item in enumerate(inputs):
-                        current_number = start_num + idx
-                        sheet.append_row([
-                            str(current_number), 
-                            str(item["nama"]).strip(), 
-                            int(item["umur"]), 
-                            str(blok_rumah_utama).strip()
-                        ])
-                    st.success(f"✅ Berhasil menyimpan {len(inputs)} data anak ke Blok {blok_rumah_utama}!")
-                    st.rerun()
+                # Simpan ke Sheets
+                start_num = len(current_df) + 1
+                for idx, item in enumerate(inputs):
+                    current_number = start_num + idx
+                    sheet.append_row([str(current_number), str(item["nama"]).strip(), int(item["umur"]), str(blok_rumah_utama).strip()])
+                st.success(f"✅ Berhasil menyimpan {len(inputs)} data anak ke Blok {blok_rumah_utama}!")
+                st.rerun()
 
 # --- 5. TAMPILAN TABEL ---
 st.markdown("---")

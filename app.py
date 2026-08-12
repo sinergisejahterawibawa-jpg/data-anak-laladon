@@ -64,17 +64,48 @@ with st.form("form_batch_input"):
     submitted = st.form_submit_button("🚀 Simpan Semua Data")
     
     if submitted:
-        invalid = any(not item["nama"].strip() for item in inputs)
-        if invalid:
+        # 1. Cek apakah ada kolom nama yang kosong
+        invalid_empty = any(not item["nama"].strip() for item in inputs)
+        if invalid_empty:
             st.warning("⚠️ Harap isi nama anak pada semua baris yang aktif!")
         else:
+            # Ambil data terbaru dari database
             current_df = load_data(sheet)
-            start_num = len(current_df) + 1
-            for idx, item in enumerate(inputs):
-                current_number = start_num + idx
-                sheet.append_row([str(current_number), str(item["nama"]).strip(), int(item["umur"]), str(blok_rumah_utama).strip()])
-            st.success(f"✅ Berhasil menyimpan {len(inputs)} data anak ke Blok {blok_rumah_utama}!")
-            st.rerun()
+            
+            # Ambil daftar nama yang sudah ada di database (dibuat huruf kecil semua agar akurat)
+            existing_names = []
+            if not current_df.empty and "Nama Anak" in current_df.columns:
+                existing_names = [str(n).strip().lower() for n in current_df["Nama Anak"].tolist()]
+            
+            # Ambil daftar nama yang diinput di form saat ini
+            batch_names = [str(item["nama"]).strip().lower() for item in inputs]
+            
+            # 2. Cek duplikasi di dalam input batch itu sendiri
+            if len(batch_names) != len(set(batch_names)):
+                st.error("❌ Gagal: Ada nama anak yang sama di dalam daftar input saat ini!")
+            else:
+                # 3. Cek apakah nama sudah terdaftar di database
+                duplicate_name = None
+                for name in batch_names:
+                    if name in existing_names:
+                        duplicate_name = name
+                        break
+                
+                if duplicate_name:
+                    st.error(f"❌ Gagal: Nama anak '{duplicate_name.title()}' sudah terdaftar di database! Pengisian tidak boleh dobel.")
+                else:
+                    # Jika aman, simpan ke Google Sheets
+                    start_num = len(current_df) + 1
+                    for idx, item in enumerate(inputs):
+                        current_number = start_num + idx
+                        sheet.append_row([
+                            str(current_number), 
+                            str(item["nama"]).strip(), 
+                            int(item["umur"]), 
+                            str(blok_rumah_utama).strip()
+                        ])
+                    st.success(f"✅ Berhasil menyimpan {len(inputs)} data anak ke Blok {blok_rumah_utama}!")
+                    st.rerun()
 
 # --- 5. TAMPILAN TABEL ---
 st.markdown("---")
@@ -82,6 +113,5 @@ st.subheader("📋 Database Data Anak")
 if df.empty:
     st.info("Belum ada data.")
 else:
-    # BARIS DI BAWAH INI ADALAH PERUBAHAN UTAMA (ditambah hide_index=True)
     st.dataframe(df, use_container_width=True, hide_index=True)
     st.caption(f"Total anak terdaftar: {len(df)} orang")
